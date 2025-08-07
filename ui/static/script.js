@@ -335,7 +335,6 @@ function limpiarFormularios() {
     }
 }
 
-[```javascript
 // Agregar listener para doble clic en los inputs (limpiar)
 cedulaInput.addEventListener('dblclick', limpiarFormularios);
 nombresInput.addEventListener('dblclick', limpiarFormularios);
@@ -440,4 +439,4 @@ function mostrarAlternativasLegales(nombres, apellidos, errorMessage = '') {
     
     resultsContainer.style.display = 'block';
     scrollToResults();
-}```
+}
