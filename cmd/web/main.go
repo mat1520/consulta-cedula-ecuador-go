@@ -53,12 +53,38 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 	var nombre, apellido string
 	var encontrado bool
 
-	// Configurar el selector para capturar los resultados
+	// Agregar logging del HTML completo para debugging
+	c.OnHTML("html", func(e *colly.HTMLElement) {
+		htmlContent := e.Text
+		log.Printf("HTML recibido (primeros 500 caracteres): %s", htmlContent[:min(500, len(htmlContent))])
+	})
+
+	// Configurar el selector para capturar los resultados en diferentes formatos
+	c.OnHTML("body", func(e *colly.HTMLElement) {
+		bodyText := strings.TrimSpace(e.Text)
+		log.Printf("Contenido del body: %s", bodyText)
+
+		// Buscar patrones comunes de nombres en el texto
+		lines := strings.Split(bodyText, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if len(line) > 5 && strings.Contains(strings.ToUpper(line), "NOMBRE") {
+				log.Printf("Línea con 'NOMBRE' encontrada: %s", line)
+			}
+			if len(line) > 5 && strings.Contains(strings.ToUpper(line), "APELLIDO") {
+				log.Printf("Línea con 'APELLIDO' encontrada: %s", line)
+			}
+		}
+	})
+
+	// Buscar en todas las tablas
 	c.OnHTML("table", func(e *colly.HTMLElement) {
-		// Buscar en todas las filas de la tabla
+		log.Printf("Tabla encontrada")
 		e.ForEach("tr", func(i int, row *colly.HTMLElement) {
-			// Obtener todas las celdas de la fila
 			cells := row.ChildTexts("td")
+			if len(cells) > 0 {
+				log.Printf("Fila %d: %v", i, cells)
+			}
 
 			// Si la fila tiene al menos 2 celdas y contiene datos relevantes
 			if len(cells) >= 2 {
@@ -69,6 +95,7 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 
 					// Si encontramos un texto que parece un nombre (contiene letras y espacios)
 					if len(cellText) > 2 && regexp.MustCompile(`^[A-ZÁÉÍÓÚÑ\s]+$`).MatchString(cellTextUpper) {
+						log.Printf("Posible nombre encontrado: %s", cellText)
 						// Si es el primer nombre encontrado, considerarlo como nombre completo
 						if !encontrado {
 							// Dividir en palabras para separar nombre y apellido
@@ -79,6 +106,7 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 								nombre = strings.Join(palabras[:mitad], " ")
 								apellido = strings.Join(palabras[mitad:], " ")
 								encontrado = true
+								log.Printf("Nombre extraído: %s, Apellido: %s", nombre, apellido)
 							} else if len(palabras) == 1 {
 								nombre = palabras[0]
 								// Buscar en la siguiente celda para el apellido
@@ -89,6 +117,7 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 									}
 								}
 								encontrado = true
+								log.Printf("Nombre extraído: %s, Apellido: %s", nombre, apellido)
 							}
 						}
 					}
@@ -97,13 +126,32 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 		})
 	})
 
+	// Buscar también en divs que podrían contener los resultados
+	c.OnHTML("div", func(e *colly.HTMLElement) {
+		text := strings.TrimSpace(e.Text)
+		if len(text) > 10 && !encontrado {
+			// Buscar patrones que podrían indicar nombre y apellido
+			if regexp.MustCompile(`[A-ZÁÉÍÓÚÑ]{2,}\s+[A-ZÁÉÍÓÚÑ]{2,}`).MatchString(strings.ToUpper(text)) {
+				log.Printf("Posible nombre en div: %s", text)
+				palabras := strings.Fields(strings.ToUpper(text))
+				if len(palabras) >= 2 {
+					mitad := len(palabras) / 2
+					nombre = strings.Join(palabras[:mitad], " ")
+					apellido = strings.Join(palabras[mitad:], " ")
+					encontrado = true
+					log.Printf("Nombre extraído de div: %s, Apellido: %s", nombre, apellido)
+				}
+			}
+		}
+	})
+
 	// Configurar manejo de errores HTTP
 	c.OnError(func(r *colly.Response, err error) {
 		log.Printf("Error durante el scraping: %s", err.Error())
 	})
 
-	// Configurar el POST a la página de consulta
-	err := c.Post("https://www.ecuadorlegalonline.com/modulo/consultar-cedula.php", map[string]string{
+	// Configurar el POST a la página de consulta (URL actualizada)
+	err := c.Post("https://www.ecuadorlegalonline.com/consultas/consultar-numero-cedula/", map[string]string{
 		"tipo": "cedula",
 		"term": cedula,
 	})
@@ -114,6 +162,7 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 
 	// Si no se encontraron datos, retornar error
 	if !encontrado || nombre == "" {
+		log.Printf("No se encontraron datos para la cédula: %s", cedula)
 		return nil, fmt.Errorf("cédula no encontrada")
 	}
 
@@ -123,7 +172,13 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 	}, nil
 }
 
-// manejarConsulta maneja las peticiones POST al endpoint /api/consultar
+// Función auxiliar para min
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+} // manejarConsulta maneja las peticiones POST al endpoint /api/consultar
 func manejarConsulta(w http.ResponseWriter, r *http.Request) {
 	// Configurar headers CORS
 	w.Header().Set("Access-Control-Allow-Origin", "*")
