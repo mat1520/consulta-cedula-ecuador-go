@@ -186,7 +186,7 @@ func main() {
 	http.HandleFunc("/api/consultar", manejarConsulta)
 
 	// Configurar el puerto
-	puerto := ":8080"
+	puerto := ":8081"
 
 	fmt.Printf("🚀 Servidor iniciado en http://localhost%s\n", puerto)
 	fmt.Println("📁 Sirviendo archivos estáticos desde ./ui/static/")
