@@ -87,9 +87,12 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 
 	// Estructura para parsear la respuesta JSON del SRI
 	type SRIResponse struct {
-		Identificacion string `json:"identificacion"`
-		NombreRazon    string `json:"nombreRazon"`
-		// Puede tener otros campos que no necesitamos ahora
+		Contribuyente struct {
+			Identificacion   string `json:"identificacion"`
+			Denominacion     string `json:"denominacion"`
+			NombreComercial  string `json:"nombreComercial"`
+			Clase           string `json:"clase"`
+		} `json:"contribuyente"`
 	}
 
 	var sriData SRIResponse
@@ -100,15 +103,23 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 	}
 
 	// Verificar que se encontraron datos
-	if sriData.NombreRazon == "" {
-		log.Printf("No se encontró nombreRazon en la respuesta")
+	nombreCompleto := ""
+	if sriData.Contribuyente.Denominacion != "" {
+		nombreCompleto = sriData.Contribuyente.Denominacion
+	} else if sriData.Contribuyente.NombreComercial != "" {
+		nombreCompleto = sriData.Contribuyente.NombreComercial
+	}
+
+	if nombreCompleto == "" {
+		log.Printf("No se encontró información del nombre en la respuesta")
 		return nil, fmt.Errorf("cédula no encontrada")
 	}
 
-	log.Printf("Datos encontrados - Identificación: %s, Nombre: %s", sriData.Identificacion, sriData.NombreRazon)
+	log.Printf("Datos encontrados - Identificación: %s, Nombre: %s, Clase: %s", 
+		sriData.Contribuyente.Identificacion, nombreCompleto, sriData.Contribuyente.Clase)
 
 	// Procesar el nombre completo para separar nombre y apellido
-	nombreCompleto := strings.TrimSpace(sriData.NombreRazon)
+	nombreCompleto = strings.TrimSpace(nombreCompleto)
 	palabras := strings.Fields(nombreCompleto)
 
 	var nombre, apellido string
