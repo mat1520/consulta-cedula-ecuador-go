@@ -169,6 +169,71 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// consultarPorNombres realiza web scraping en consultasecuador.com para buscar cédula por nombres
+func consultarPorNombres(nombres, apellidos string) (*NombresResponse, error) {
+	log.Printf("Consultando por nombres: %s %s", nombres, apellidos)
+
+	// Crear cliente HTTP con timeout
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// URL del formulario
+	url := "https://consultasecuador.com/en-linea/personas/consultar-cedula-con-nombres"
+
+	// Crear datos del formulario
+	formData := fmt.Sprintf("nombres=%s&apellidos=%s",
+		strings.ReplaceAll(nombres, " ", "+"),
+		strings.ReplaceAll(apellidos, " ", "+"))
+
+	// Crear petición HTTP POST
+	req, err := http.NewRequest("POST", url, strings.NewReader(formData))
+	if err != nil {
+		return nil, fmt.Errorf("error al crear la petición: %v", err)
+	}
+
+	// Configurar headers para simular un navegador real
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Referer", url)
+
+	// Realizar la petición
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error al realizar la petición: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Leer la respuesta
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error al leer la respuesta: %v", err)
+	}
+
+	bodyStr := string(body)
+	log.Printf("Respuesta del sitio (primeros 500 caracteres): %s", bodyStr[:min(500, len(bodyStr))])
+
+	// Buscar patrones de cédula en la respuesta HTML
+	// Buscar número de cédula (10 dígitos consecutivos)
+	cedulaRegex := regexp.MustCompile(`\b\d{10}\b`)
+	cedulaEncontrada := cedulaRegex.FindString(bodyStr)
+
+	if cedulaEncontrada == "" {
+		log.Printf("No se encontró cédula para los nombres: %s %s", nombres, apellidos)
+		return nil, fmt.Errorf("no se encontró información para los nombres proporcionados")
+	}
+
+	log.Printf("Cédula encontrada: %s para %s %s", cedulaEncontrada, nombres, apellidos)
+
+	return &NombresResponse{
+		Cedula:    cedulaEncontrada,
+		Nombres:   nombres,
+		Apellidos: apellidos,
+	}, nil
 } // manejarConsulta maneja las peticiones POST al endpoint /api/consultar
 func manejarConsulta(w http.ResponseWriter, r *http.Request) {
 	// Configurar headers CORS
@@ -223,20 +288,76 @@ func manejarConsulta(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resultado)
 }
 
+// manejarConsultaPorNombres maneja las peticiones POST al endpoint /api/consultar-nombres
+func manejarConsultaPorNombres(w http.ResponseWriter, r *http.Request) {
+	// Configurar headers CORS
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
+
+	// Manejar preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Verificar que sea una petición POST
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Método no permitido"})
+		return
+	}
+
+	// Decodificar el JSON de la petición
+	var req NombresRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "JSON inválido"})
+		return
+	}
+
+	// Validar que se proporcionen nombres y apellidos
+	if strings.TrimSpace(req.Nombres) == "" || strings.TrimSpace(req.Apellidos) == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Se requieren nombres y apellidos"})
+		return
+	}
+
+	// Realizar la consulta
+	resultado, err := consultarPorNombres(req.Nombres, req.Apellidos)
+	if err != nil {
+		if strings.Contains(err.Error(), "no se encontró información") {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "No se encontró información para los nombres proporcionados"})
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "Error interno del servidor al consultar"})
+		}
+		return
+	}
+
+	// Responder con los datos encontrados
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resultado)
+}
+
 func main() {
 	// Configurar el servidor de archivos estáticos
 	fs := http.FileServer(http.Dir("./ui/static/"))
 	http.Handle("/", fs)
 
-	// Configurar el endpoint de la API
+	// Configurar los endpoints de la API
 	http.HandleFunc("/api/consultar", manejarConsulta)
+	http.HandleFunc("/api/consultar-nombres", manejarConsultaPorNombres)
 
 	// Configurar el puerto
 	puerto := ":8085"
 
 	fmt.Printf("🚀 Servidor iniciado en http://localhost%s\n", puerto)
 	fmt.Println("📁 Sirviendo archivos estáticos desde ./ui/static/")
-	fmt.Println("🔍 Endpoint de consulta disponible en /api/consultar")
+	fmt.Println("🔍 Endpoint de consulta por cédula disponible en /api/consultar")
+	fmt.Println("👤 Endpoint de consulta por nombres disponible en /api/consultar-nombres")
 
 	// Iniciar el servidor
 	if err := http.ListenAndServe(puerto, nil); err != nil {

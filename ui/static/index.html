@@ -10,11 +10,18 @@
     <div class="container">
         <header>
             <h1>🇪🇨 Consulta de Cédula Ecuador</h1>
-            <p>Consulta nombres por número de cédula de ciudadanía ecuatoriana</p>
+            <p>Consulta por número de cédula o por nombres y apellidos</p>
         </header>
 
         <main>
-            <form id="cedula-form" class="cedula-form">
+            <!-- Pestañas para cambiar entre búsqueda por cédula y por nombres -->
+            <div class="tabs">
+                <button type="button" class="tab-button active" data-tab="cedula">Por Cédula</button>
+                <button type="button" class="tab-button" data-tab="nombres">Por Nombres</button>
+            </div>
+
+            <!-- Formulario de búsqueda por cédula -->
+            <form id="cedula-form" class="search-form active">
                 <div class="input-group">
                     <label for="cedula-input">Número de Cédula:</label>
                     <input 
@@ -28,9 +35,43 @@
                     >
                 </div>
                 
-                <button type="submit" id="submit-btn">
-                    <span class="btn-text">Consultar</span>
-                    <div class="spinner" id="spinner" style="display: none;">
+                <button type="submit" id="submit-cedula-btn" class="submit-btn">
+                    <span class="btn-text">Consultar por Cédula</span>
+                    <div class="spinner" style="display: none;">
+                        <div class="spinner-circle"></div>
+                    </div>
+                </button>
+            </form>
+
+            <!-- Formulario de búsqueda por nombres -->
+            <form id="nombres-form" class="search-form">
+                <div class="input-group">
+                    <label for="nombres-input">Nombres:</label>
+                    <input 
+                        type="text" 
+                        id="nombres-input" 
+                        placeholder="Ej: Juan Carlos" 
+                        pattern="[A-Za-zÀ-ÿ\u00f1\u00d1\s]+"
+                        title="Solo se permiten letras y espacios"
+                        required
+                    >
+                </div>
+                
+                <div class="input-group">
+                    <label for="apellidos-input">Apellidos:</label>
+                    <input 
+                        type="text" 
+                        id="apellidos-input" 
+                        placeholder="Ej: Pérez González" 
+                        pattern="[A-Za-zÀ-ÿ\u00f1\u00d1\s]+"
+                        title="Solo se permiten letras y espacios"
+                        required
+                    >
+                </div>
+                
+                <button type="submit" id="submit-nombres-btn" class="submit-btn">
+                    <span class="btn-text">Consultar por Nombres</span>
+                    <div class="spinner" style="display: none;">
                         <div class="spinner-circle"></div>
                     </div>
                 </button>
