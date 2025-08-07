@@ -1,17 +1,51 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consulta de Cédula</title>
+    <title>Consulta de Cédula Ecuador</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Bienvenido a la aplicación de consulta de cédula</h1>
-    <p>Por favor, ingresa tu número de cédula para continuar.</p>
-    <form action="/consultar" method="POST">
-        <input type="text" name="cedula" placeholder="Número de cédula" required>
-        <button type="submit">Consultar</button>
-    </form>
+    <div class="container">
+        <header>
+            <h1>🇪🇨 Consulta de Cédula Ecuador</h1>
+            <p>Consulta nombres por número de cédula de ciudadanía ecuatoriana</p>
+        </header>
+
+        <main>
+            <form id="cedula-form" class="cedula-form">
+                <div class="input-group">
+                    <label for="cedula-input">Número de Cédula:</label>
+                    <input 
+                        type="text" 
+                        id="cedula-input" 
+                        placeholder="Ej: 1234567890" 
+                        maxlength="10" 
+                        pattern="[0-9]{10}"
+                        title="Debe contener exactamente 10 dígitos"
+                        required
+                    >
+                </div>
+                
+                <button type="submit" id="submit-btn">
+                    <span class="btn-text">Consultar</span>
+                    <div class="spinner" id="spinner" style="display: none;">
+                        <div class="spinner-circle"></div>
+                    </div>
+                </button>
+            </form>
+
+            <div id="results-container" class="results-container" style="display: none;">
+                <!-- Los resultados se mostrarán aquí -->
+            </div>
+        </main>
+
+        <footer>
+            <p>⚠️ Esta herramienta es solo para fines informativos. Los datos provienen de fuentes públicas.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
