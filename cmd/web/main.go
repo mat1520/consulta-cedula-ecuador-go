@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"regexp"
@@ -11,15 +11,28 @@ import (
 	"time"
 )
 
-// CedulaRequest representa la estructura de la petición de consulta
+// CedulaRequest representa la estructura de la petición de consulta por cédula
 type CedulaRequest struct {
 	Cedula string `json:"cedula"`
+}
+
+// NombresRequest representa la estructura de la petición de consulta por nombres
+type NombresRequest struct {
+	Nombres   string `json:"nombres"`
+	Apellidos string `json:"apellidos"`
 }
 
 // CedulaResponse representa la respuesta exitosa con los datos
 type CedulaResponse struct {
 	Nombre   string `json:"nombre"`
 	Apellido string `json:"apellido"`
+}
+
+// NombresResponse representa la respuesta exitosa con la cédula encontrada
+type NombresResponse struct {
+	Cedula    string `json:"cedula"`
+	Nombres   string `json:"nombres"`
+	Apellidos string `json:"apellidos"`
 }
 
 // ErrorResponse representa la respuesta de error
@@ -72,7 +85,7 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 	defer resp.Body.Close()
 
 	// Leer la respuesta
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error al leer la respuesta: %v", err)
 	}
