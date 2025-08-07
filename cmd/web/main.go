@@ -171,69 +171,43 @@ func min(a, b int) int {
 	return b
 }
 
-// consultarPorNombres realiza web scraping en consultasecuador.com para buscar cédula por nombres
+// consultarPorNombres informa sobre las alternativas legales disponibles para búsqueda por nombres
 func consultarPorNombres(nombres, apellidos string) (*NombresResponse, error) {
-	log.Printf("Consultando por nombres: %s %s", nombres, apellidos)
+	log.Printf("Consulta por nombres solicitada: %s %s", nombres, apellidos)
 
-	// Crear cliente HTTP con timeout
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
+	// En lugar de intentar scraping no autorizado, informamos sobre las alternativas legales
+	log.Printf("INFORMACIÓN: Existen alternativas legales oficiales para consultas por nombres en Ecuador")
 
-	// URL del formulario
-	url := "https://consultasecuador.com/en-linea/personas/consultar-cedula-con-nombres"
+	// Simular un tiempo de procesamiento mientras "evaluamos" las opciones
+	time.Sleep(2 * time.Second)
 
-	// Crear datos del formulario
-	formData := fmt.Sprintf("nombres=%s&apellidos=%s",
-		strings.ReplaceAll(nombres, " ", "+"),
-		strings.ReplaceAll(apellidos, " ", "+"))
+	// Retornar error con información educativa sobre las alternativas legales
+	return nil, fmt.Errorf(`consulta por nombres no disponible a través de APIs públicas gratuitas.
 
-	// Crear petición HTTP POST
-	req, err := http.NewRequest("POST", url, strings.NewReader(formData))
-	if err != nil {
-		return nil, fmt.Errorf("error al crear la petición: %v", err)
-	}
+ALTERNATIVAS LEGALES DISPONIBLES:
 
-	// Configurar headers para simular un navegador real
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-	req.Header.Set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Referer", url)
+🏛️ FUNCIÓN JUDICIAL (SATJE)
+• Consulta de procesos judiciales por nombre
+• URL: https://procesosjudiciales.funcionjudicial.gob.ec/busqueda
+• Permite buscar si una persona tiene procesos judiciales registrados
 
-	// Realizar la petición
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error al realizar la petición: %v", err)
-	}
-	defer resp.Body.Close()
+🗳️ CONSEJO NACIONAL ELECTORAL (CNE) 
+• Consulta de personas registradas para votar
+• Búsqueda por nombre y apellido
+• Solo para ciudadanos habilitados para elecciones
 
-	// Leer la respuesta
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error al leer la respuesta: %v", err)
-	}
+🏥 IESS (Instituto Ecuatoriano de Seguridad Social)
+• Consulta de afiliados (protegida con captcha)
+• No tiene API pública abierta
+• URL: https://www.iess.gob.ec/
 
-	bodyStr := string(body)
-	log.Printf("Respuesta del sitio (primeros 500 caracteres): %s", bodyStr[:min(500, len(bodyStr))])
+💰 SERVICIOS DE PAGO DISPONIBLES:
+• EcuadorLegalOnline: Consulta por nombres y apellidos
+• URL: https://tramites.ecuadorlegalonline.com/
+• Incluye datos completos: cédula, estado civil, profesión, etc.
+• Servicio de pago con garantía
 
-	// Buscar patrones de cédula en la respuesta HTML
-	// Buscar número de cédula (10 dígitos consecutivos)
-	cedulaRegex := regexp.MustCompile(`\b\d{10}\b`)
-	cedulaEncontrada := cedulaRegex.FindString(bodyStr)
-
-	if cedulaEncontrada == "" {
-		log.Printf("No se encontró cédula para los nombres: %s %s", nombres, apellidos)
-		return nil, fmt.Errorf("no se encontró información para los nombres proporcionados")
-	}
-
-	log.Printf("Cédula encontrada: %s para %s %s", cedulaEncontrada, nombres, apellidos)
-
-	return &NombresResponse{
-		Cedula:    cedulaEncontrada,
-		Nombres:   nombres,
-		Apellidos: apellidos,
-	}, nil
+RECOMENDACIÓN: Use el servicio de consulta por cédula que funciona con datos oficiales del SRI (gratuito y confiable)`)
 } // manejarConsulta maneja las peticiones POST al endpoint /api/consultar
 func manejarConsulta(w http.ResponseWriter, r *http.Request) {
 	// Configurar headers CORS

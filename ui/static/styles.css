@@ -254,3 +254,48 @@ footer p {
 .loading .spinner {
     display: block !important;
 }
+
+/* Banner de aviso */
+.notice-banner {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border: 2px solid #f59e0b;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.1);
+    text-align: left;
+}
+
+.notice-banner h4 {
+    color: #92400e;
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.notice-banner p {
+    color: #92400e;
+    margin: 8px 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.notice-banner ul {
+    color: #92400e;
+    margin: 12px 0 0 20px;
+    padding: 0;
+}
+
+.notice-banner li {
+    margin: 8px 0;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.notice-banner strong {
+    color: #78350f;
+    font-weight: 700;
+}

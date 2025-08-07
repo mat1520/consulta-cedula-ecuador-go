@@ -142,11 +142,12 @@ async function consultarPorNombres(nombres, apellidos) {
         if (response.ok) {
             mostrarExitoNombres(data);
         } else if (response.status === 404) {
-            mostrarError('❌ No se encontró información para los nombres proporcionados.');
+            mostrarAlternativasLegales(nombres, apellidos);
         } else if (response.status === 400) {
             mostrarError(`⚠️ Error de validación: ${data.error}`);
         } else if (response.status === 500) {
-            mostrarError('🔧 Error interno del servidor. Inténtalo nuevamente más tarde.');
+            // El error del servidor contiene información sobre alternativas legales
+            mostrarAlternativasLegales(nombres, apellidos, data.error);
         } else {
             mostrarError(`❌ Error inesperado: ${data.error || 'Error desconocido'}`);
         }
@@ -334,7 +335,109 @@ function limpiarFormularios() {
     }
 }
 
+[```javascript
 // Agregar listener para doble clic en los inputs (limpiar)
 cedulaInput.addEventListener('dblclick', limpiarFormularios);
 nombresInput.addEventListener('dblclick', limpiarFormularios);
 apellidosInput.addEventListener('dblclick', limpiarFormularios);
+
+// Mostrar alternativas legales para consulta por nombres
+function mostrarAlternativasLegales(nombres, apellidos, errorMessage = '') {
+    resultsContainer.innerHTML = `
+        <div class="result-alternatives">
+            <div class="result-title">📋 Alternativas Legales Disponibles</div>
+            <div class="search-info">
+                <p><strong>Búsqueda solicitada:</strong> ${nombres} ${apellidos}</p>
+                <p class="info-text">⚠️ La consulta por nombres no está disponible a través de APIs públicas gratuitas.</p>
+            </div>
+            
+            <div class="alternatives-grid">
+                <div class="alternative-card judicial">
+                    <div class="card-header">
+                        <span class="card-icon">🏛️</span>
+                        <h3>Función Judicial (SATJE)</h3>
+                    </div>
+                    <div class="card-content">
+                        <p>Consulta de procesos judiciales por nombre</p>
+                        <ul>
+                            <li>Buscar si una persona tiene procesos judiciales</li>
+                            <li>Servicio oficial y gratuito</li>
+                            <li>Búsqueda por nombres y apellidos</li>
+                        </ul>
+                        <a href="https://procesosjudiciales.funcionjudicial.gob.ec/busqueda" target="_blank" class="card-button">
+                            Consultar SATJE
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="alternative-card electoral">
+                    <div class="card-header">
+                        <span class="card-icon">🗳️</span>
+                        <h3>Consejo Nacional Electoral</h3>
+                    </div>
+                    <div class="card-content">
+                        <p>Consulta de personas registradas para votar</p>
+                        <ul>
+                            <li>Búsqueda por nombre y apellido</li>
+                            <li>Solo ciudadanos habilitados para elecciones</li>
+                            <li>Servicio oficial gratuito</li>
+                        </ul>
+                        <a href="https://www.cne.gob.ec/" target="_blank" class="card-button">
+                            Consultar CNE
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="alternative-card iess">
+                    <div class="card-header">
+                        <span class="card-icon">🏥</span>
+                        <h3>IESS</h3>
+                    </div>
+                    <div class="card-content">
+                        <p>Consulta de afiliados (protegida)</p>
+                        <ul>
+                            <li>Información de afiliación</li>
+                            <li>Protegida con captcha</li>
+                            <li>No tiene API pública</li>
+                        </ul>
+                        <a href="https://www.iess.gob.ec/" target="_blank" class="card-button">
+                            Visitar IESS
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="alternative-card paid">
+                    <div class="card-header">
+                        <span class="card-icon">💰</span>
+                        <h3>Servicios de Pago</h3>
+                    </div>
+                    <div class="card-content">
+                        <p>EcuadorLegalOnline - Consulta completa</p>
+                        <ul>
+                            <li>Búsqueda por nombres y apellidos</li>
+                            <li>Datos completos: cédula, estado civil, profesión</li>
+                            <li>Servicio de pago con garantía</li>
+                        </ul>
+                        <a href="https://tramites.ecuadorlegalonline.com/" target="_blank" class="card-button paid-button">
+                            Servicio de Pago
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="recommendation">
+                <div class="recommendation-header">
+                    <span class="recommendation-icon">💡</span>
+                    <h3>Recomendación</h3>
+                </div>
+                <p>Use el <strong>servicio de consulta por cédula</strong> que funciona con datos oficiales del SRI (gratuito y confiable).</p>
+                <button onclick="switchTab('cedula')" class="switch-tab-button">
+                    Ir a Consulta por Cédula
+                </button>
+            </div>
+        </div>
+    `;
+    
+    resultsContainer.style.display = 'block';
+    scrollToResults();
+}```
