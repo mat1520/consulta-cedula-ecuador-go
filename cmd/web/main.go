@@ -3,13 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
-
-	"github.com/gocolly/colly/v2"
-	"github.com/gocolly/colly/v2/debug"
+	"time"
 )
 
 // CedulaRequest representa la estructura de la petición de consulta
@@ -40,130 +39,98 @@ func validarCedula(cedula string) bool {
 	return match
 }
 
-// consultarCedula realiza el web scraping para obtener los datos de la cédula
+// consultarCedula realiza la consulta a la API del SRI para obtener los datos de la cédula
 func consultarCedula(cedula string) (*CedulaResponse, error) {
-	// Crear nuevo colector con configuración para debugging
-	c := colly.NewCollector(
-		colly.Debugger(&debug.LogDebugger{}),
-	)
+	// Construir la URL de la API del SRI
+	timestamp := time.Now().UnixMilli()
+	url := fmt.Sprintf("https://srienlinea.sri.gob.ec/movil-servicios/api/v1.0/deudas/porIdentificacion/%s/?tipoPersona=N&_=%d", cedula, timestamp)
 
-	// Configurar User-Agent para evitar bloqueos
-	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+	log.Printf("Consultando API del SRI: %s", url)
 
-	var nombre, apellido string
-	var encontrado bool
+	// Crear cliente HTTP con timeout
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
 
-	// Agregar logging del HTML completo para debugging
-	c.OnHTML("html", func(e *colly.HTMLElement) {
-		htmlContent := e.Text
-		log.Printf("HTML recibido (primeros 500 caracteres): %s", htmlContent[:min(500, len(htmlContent))])
-	})
+	// Crear petición HTTP
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error al crear la petición: %v", err)
+	}
 
-	// Configurar el selector para capturar los resultados en diferentes formatos
-	c.OnHTML("body", func(e *colly.HTMLElement) {
-		bodyText := strings.TrimSpace(e.Text)
-		log.Printf("Contenido del body: %s", bodyText)
+	// Configurar headers para simular un navegador real
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+	req.Header.Set("Referer", "https://srienlinea.sri.gob.ec/")
 
-		// Buscar patrones comunes de nombres en el texto
-		lines := strings.Split(bodyText, "\n")
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if len(line) > 5 && strings.Contains(strings.ToUpper(line), "NOMBRE") {
-				log.Printf("Línea con 'NOMBRE' encontrada: %s", line)
-			}
-			if len(line) > 5 && strings.Contains(strings.ToUpper(line), "APELLIDO") {
-				log.Printf("Línea con 'APELLIDO' encontrada: %s", line)
-			}
-		}
-	})
-
-	// Buscar en todas las tablas
-	c.OnHTML("table", func(e *colly.HTMLElement) {
-		log.Printf("Tabla encontrada")
-		e.ForEach("tr", func(i int, row *colly.HTMLElement) {
-			cells := row.ChildTexts("td")
-			if len(cells) > 0 {
-				log.Printf("Fila %d: %v", i, cells)
-			}
-
-			// Si la fila tiene al menos 2 celdas y contiene datos relevantes
-			if len(cells) >= 2 {
-				// Buscar patrones que indiquen nombre y apellido
-				for j, cell := range cells {
-					cellText := strings.TrimSpace(cell)
-					cellTextUpper := strings.ToUpper(cellText)
-
-					// Si encontramos un texto que parece un nombre (contiene letras y espacios)
-					if len(cellText) > 2 && regexp.MustCompile(`^[A-ZÁÉÍÓÚÑ\s]+$`).MatchString(cellTextUpper) {
-						log.Printf("Posible nombre encontrado: %s", cellText)
-						// Si es el primer nombre encontrado, considerarlo como nombre completo
-						if !encontrado {
-							// Dividir en palabras para separar nombre y apellido
-							palabras := strings.Fields(cellTextUpper)
-							if len(palabras) >= 2 {
-								// Asumimos que las primeras palabras son nombres y las últimas apellidos
-								mitad := len(palabras) / 2
-								nombre = strings.Join(palabras[:mitad], " ")
-								apellido = strings.Join(palabras[mitad:], " ")
-								encontrado = true
-								log.Printf("Nombre extraído: %s, Apellido: %s", nombre, apellido)
-							} else if len(palabras) == 1 {
-								nombre = palabras[0]
-								// Buscar en la siguiente celda para el apellido
-								if j+1 < len(cells) {
-									nextCell := strings.TrimSpace(strings.ToUpper(cells[j+1]))
-									if regexp.MustCompile(`^[A-ZÁÉÍÓÚÑ\s]+$`).MatchString(nextCell) {
-										apellido = nextCell
-									}
-								}
-								encontrado = true
-								log.Printf("Nombre extraído: %s, Apellido: %s", nombre, apellido)
-							}
-						}
-					}
-				}
-			}
-		})
-	})
-
-	// Buscar también en divs que podrían contener los resultados
-	c.OnHTML("div", func(e *colly.HTMLElement) {
-		text := strings.TrimSpace(e.Text)
-		if len(text) > 10 && !encontrado {
-			// Buscar patrones que podrían indicar nombre y apellido
-			if regexp.MustCompile(`[A-ZÁÉÍÓÚÑ]{2,}\s+[A-ZÁÉÍÓÚÑ]{2,}`).MatchString(strings.ToUpper(text)) {
-				log.Printf("Posible nombre en div: %s", text)
-				palabras := strings.Fields(strings.ToUpper(text))
-				if len(palabras) >= 2 {
-					mitad := len(palabras) / 2
-					nombre = strings.Join(palabras[:mitad], " ")
-					apellido = strings.Join(palabras[mitad:], " ")
-					encontrado = true
-					log.Printf("Nombre extraído de div: %s, Apellido: %s", nombre, apellido)
-				}
-			}
-		}
-	})
-
-	// Configurar manejo de errores HTTP
-	c.OnError(func(r *colly.Response, err error) {
-		log.Printf("Error durante el scraping: %s", err.Error())
-	})
-
-	// Configurar el POST a la página de consulta (URL actualizada)
-	err := c.Post("https://www.ecuadorlegalonline.com/consultas/consultar-numero-cedula/", map[string]string{
-		"tipo": "cedula",
-		"term": cedula,
-	})
-
+	// Realizar la petición
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error al realizar la petición: %v", err)
 	}
+	defer resp.Body.Close()
 
-	// Si no se encontraron datos, retornar error
-	if !encontrado || nombre == "" {
-		log.Printf("No se encontraron datos para la cédula: %s", cedula)
+	// Leer la respuesta
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error al leer la respuesta: %v", err)
+	}
+
+	log.Printf("Respuesta de la API (primeros 500 caracteres): %s", string(body)[:min(500, len(body))])
+
+	// Verificar el código de estado HTTP
+	if resp.StatusCode != 200 {
+		log.Printf("Código de estado HTTP: %d", resp.StatusCode)
 		return nil, fmt.Errorf("cédula no encontrada")
+	}
+
+	// Estructura para parsear la respuesta JSON del SRI
+	type SRIResponse struct {
+		Identificacion string `json:"identificacion"`
+		NombreRazon    string `json:"nombreRazon"`
+		// Puede tener otros campos que no necesitamos ahora
+	}
+
+	var sriData SRIResponse
+	if err := json.Unmarshal(body, &sriData); err != nil {
+		log.Printf("Error al parsear JSON: %v", err)
+		log.Printf("Respuesta completa: %s", string(body))
+		return nil, fmt.Errorf("error al procesar la respuesta del servidor")
+	}
+
+	// Verificar que se encontraron datos
+	if sriData.NombreRazon == "" {
+		log.Printf("No se encontró nombreRazon en la respuesta")
+		return nil, fmt.Errorf("cédula no encontrada")
+	}
+
+	log.Printf("Datos encontrados - Identificación: %s, Nombre: %s", sriData.Identificacion, sriData.NombreRazon)
+
+	// Procesar el nombre completo para separar nombre y apellido
+	nombreCompleto := strings.TrimSpace(sriData.NombreRazon)
+	palabras := strings.Fields(nombreCompleto)
+
+	var nombre, apellido string
+
+	if len(palabras) >= 2 {
+		// Asumimos que las primeras palabras son nombres y las últimas apellidos
+		// Para nombres ecuatorianos, generalmente: PRIMER_NOMBRE SEGUNDO_NOMBRE PRIMER_APELLIDO SEGUNDO_APELLIDO
+		if len(palabras) == 2 {
+			nombre = palabras[0]
+			apellido = palabras[1]
+		} else if len(palabras) == 3 {
+			nombre = palabras[0]
+			apellido = strings.Join(palabras[1:], " ")
+		} else {
+			// 4 o más palabras
+			mitad := len(palabras) / 2
+			nombre = strings.Join(palabras[:mitad], " ")
+			apellido = strings.Join(palabras[mitad:], " ")
+		}
+	} else {
+		nombre = nombreCompleto
+		apellido = ""
 	}
 
 	return &CedulaResponse{
