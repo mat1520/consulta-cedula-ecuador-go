@@ -140,7 +140,13 @@ async function consultarPorNombres(nombres, apellidos) {
         const data = await response.json();
         
         if (response.ok) {
-            mostrarExitoNombres(data);
+            // Verificar si es una respuesta con información de alternativas
+            if (data.alternatives_info) {
+                mostrarAlternativasLegales(nombres, apellidos, data.error_details);
+            } else {
+                // Respuesta exitosa con datos (si alguna vez funcionara)
+                mostrarExitoNombres(data);
+            }
         } else if (response.status === 404) {
             mostrarAlternativasLegales(nombres, apellidos);
         } else if (response.status === 400) {

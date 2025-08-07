@@ -298,20 +298,23 @@ func manejarConsultaPorNombres(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Realizar la consulta
+	// Realizar la "consulta" (que en realidad retorna información sobre alternativas legales)
 	resultado, err := consultarPorNombres(req.Nombres, req.Apellidos)
 	if err != nil {
-		if strings.Contains(err.Error(), "no se encontró información") {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "No se encontró información para los nombres proporcionados"})
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "Error interno del servidor al consultar"})
-		}
+		// En lugar de retornar error, enviamos una respuesta informativa
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":           false,
+			"nombres":           req.Nombres,
+			"apellidos":         req.Apellidos,
+			"message":           "Consulta por nombres no disponible a través de APIs públicas gratuitas",
+			"alternatives_info": true,
+			"error_details":     err.Error(),
+		})
 		return
 	}
 
-	// Responder con los datos encontrados
+	// Responder con los datos encontrados (si alguna vez funcionara)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resultado)
 }
