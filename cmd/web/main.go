@@ -88,9 +88,9 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 	// Estructura para parsear la respuesta JSON del SRI
 	type SRIResponse struct {
 		Contribuyente struct {
-			Identificacion   string `json:"identificacion"`
-			Denominacion     string `json:"denominacion"`
-			NombreComercial  string `json:"nombreComercial"`
+			Identificacion  string `json:"identificacion"`
+			Denominacion    string `json:"denominacion"`
+			NombreComercial string `json:"nombreComercial"`
 			Clase           string `json:"clase"`
 		} `json:"contribuyente"`
 	}
@@ -115,7 +115,7 @@ func consultarCedula(cedula string) (*CedulaResponse, error) {
 		return nil, fmt.Errorf("cédula no encontrada")
 	}
 
-	log.Printf("Datos encontrados - Identificación: %s, Nombre: %s, Clase: %s", 
+	log.Printf("Datos encontrados - Identificación: %s, Nombre: %s, Clase: %s",
 		sriData.Contribuyente.Identificacion, nombreCompleto, sriData.Contribuyente.Clase)
 
 	// Procesar el nombre completo para separar nombre y apellido
